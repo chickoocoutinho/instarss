@@ -35,7 +35,7 @@ pub fn parser(json: &str) -> String {
         let title = match content["accessibility_caption"].as_str() {
             Some(caption) => caption.to_string(),
             None => format!(
-                "Photo by {}{}",
+                "Photo shared by {}{}",
                 json["graphql"]["user"]["full_name"].as_str().unwrap(),
                 match content["location"]["name"].as_str() {
                     Some(location) => format!(" at {}", location),
