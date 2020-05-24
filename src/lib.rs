@@ -26,18 +26,28 @@ pub fn parser(json: &str) -> String {
 
     let json: Value = serde_json::from_str(json).unwrap();
 
+    let fullname = json["graphql"]["user"]["full_name"].as_str().unwrap();
+    let username = json["graphql"]["user"]["username"].as_str().unwrap();
+    let icon = json["graphql"]["user"]["profile_pic_url_hd"]
+        .as_str()
+        .unwrap();
+
     let contents = json["graphql"]["user"]["edge_owner_to_timeline_media"]["edges"]
         .as_array()
         .unwrap();
     for content in contents {
         let content = &content["node"];
 
-        let title = match content["accessibility_caption"].as_str() {
-            Some(caption) => caption.to_string(),
+        let description = content["edge_media_to_caption"]["edges"][0]["node"]["text"].as_str();
+        let alt = content["accessibility_caption"].as_str();
+        let location = content["location"]["name"].as_str();
+
+        let title = match alt {
+            Some(alt) => alt.to_string(),
             None => format!(
                 "Photo shared by {}{}",
-                json["graphql"]["user"]["full_name"].as_str().unwrap(),
-                match content["location"]["name"].as_str() {
+                fullname,
+                match location {
                     Some(location) => format!(" at {}", location),
                     None => "".to_string(),
                 }
@@ -49,22 +59,27 @@ pub fn parser(json: &str) -> String {
                 .iter()
                 .map(|media| {
                     format!(
-                        "<img src=\"{}\" />",
-                        media["node"]["display_url"].as_str().unwrap()
+                        "<img src=\"{}\"{}>",
+                        media["node"]["display_url"].as_str().unwrap(),
+                        match media["node"]["accessibility_caption"].as_str() {
+                            Some(alt) => format!(" alt=\"{}\"", alt),
+                            None => "".to_string(),
+                        }
                     )
                 })
                 .collect(),
             None => vec![format!(
-                "<img src=\"{}\" />",
-                content["display_url"].as_str().unwrap()
+                "<img src=\"{}\"{}>",
+                content["display_url"].as_str().unwrap(),
+                match alt {
+                    Some(alt) => format!(" alt=\"{}\"", alt),
+                    None => "".to_string(),
+                }
             )],
         };
-        let desc = format!(
+        let description = format!(
             "<p>{}</p>{}",
-            content["edge_media_to_caption"]["edges"][0]["node"]["text"]
-                .as_str()
-                .unwrap()
-                .to_string(),
+            description.unwrap().to_string(),
             photos.concat()
         );
         let link = format!(
@@ -76,7 +91,7 @@ pub fn parser(json: &str) -> String {
 
         let item = ItemBuilder::default()
             .title(title)
-            .description(desc)
+            .description(description)
             .link(link)
             .pub_date(date.to_rfc2822())
             .build()
@@ -84,27 +99,14 @@ pub fn parser(json: &str) -> String {
         items.push(item);
     }
 
-    let title = format!(
-        "{} (@{}) from instagram",
-        json["graphql"]["user"]["full_name"].as_str().unwrap(),
-        json["graphql"]["user"]["username"].as_str().unwrap()
-    );
-    let link = format!(
-        "https://www.instagram.com/{}",
-        json["graphql"]["user"]["username"].as_str().unwrap()
-    );
+    let title = format!("{} (@{}) from instagram", fullname, username);
+    let link = format!("https://www.instagram.com/{}", username);
     let description = json["graphql"]["user"]["biography"].as_str().unwrap();
-    let image = format!(
-        "{}",
-        json["graphql"]["user"]["profile_pic_url_hd"]
-            .as_str()
-            .unwrap()
-    );
 
     let image = ImageBuilder::default()
         .title(&title)
         .link(&link)
-        .url(image)
+        .url(icon)
         .build()
         .unwrap();
 
