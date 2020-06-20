@@ -77,11 +77,11 @@ pub fn parser(json: &str) -> String {
                 }
             )],
         };
-        let description = format!(
-            "<p>{}</p>{}",
-            description.unwrap().to_string(),
-            photos.concat()
-        );
+        let description = match description {
+            None => "".to_string(),
+            Some(description) => format!("<p>{}</p>", description),
+        };
+        let description = [description, photos.concat()].concat();
         let link = format!(
             "https://www.instagram.com/p/{}/",
             content["shortcode"].as_str().unwrap()
