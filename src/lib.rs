@@ -22,19 +22,15 @@ cfg_if! {
 
 #[wasm_bindgen]
 pub fn parser(json: &str) -> String {
-    let mut items: Vec<rss::Item> = vec![];
-
     let json: Value = serde_json::from_str(json).unwrap();
+    let json = &json["graphql"]["user"];
 
-    let fullname = json["graphql"]["user"]["full_name"].as_str().unwrap();
-    let username = json["graphql"]["user"]["username"].as_str().unwrap();
-    let icon = json["graphql"]["user"]["profile_pic_url_hd"]
-        .as_str()
-        .unwrap();
-
-    let contents = json["graphql"]["user"]["edge_owner_to_timeline_media"]["edges"]
+    let username = json["username"].as_str().unwrap_or("unknown");
+    let contents = json["edge_owner_to_timeline_media"]["edges"]
         .as_array()
         .unwrap();
+
+    let mut items: Vec<rss::Item> = vec![];
     for content in contents {
         let content = &content["node"];
 
@@ -42,18 +38,13 @@ pub fn parser(json: &str) -> String {
         let alt = content["accessibility_caption"].as_str();
         let location = content["location"]["name"].as_str();
 
-        let title = match alt {
-            Some(alt) => alt.to_string(),
-            None => format!(
-                "Photo shared by {}{}",
-                fullname,
-                match location {
-                    Some(location) => format!(" at {}", location),
-                    None => "".to_string(),
-                }
-            ),
-        };
-
+        let title = alt.map(|alt| alt.to_string()).unwrap_or(format!(
+            "Photo shared by @{}{}",
+            username,
+            location
+                .map(|location| format!(" at {}", location))
+                .unwrap_or(String::new())
+        ));
         let photos = match content["edge_sidecar_to_children"]["edges"].as_array() {
             Some(medias) => medias
                 .iter()
@@ -61,32 +52,28 @@ pub fn parser(json: &str) -> String {
                     format!(
                         "<img src=\"{}\"{}>",
                         media["node"]["display_url"].as_str().unwrap(),
-                        match media["node"]["accessibility_caption"].as_str() {
-                            Some(alt) => format!(" alt=\"{}\"", alt),
-                            None => "".to_string(),
-                        }
+                        media["node"]["accessibility_caption"]
+                            .as_str()
+                            .map(|alt| format!(" alt=\"{}\"", alt))
+                            .unwrap_or(String::new())
                     )
                 })
                 .collect(),
             None => vec![format!(
                 "<img src=\"{}\"{}>",
                 content["display_url"].as_str().unwrap(),
-                match alt {
-                    Some(alt) => format!(" alt=\"{}\"", alt),
-                    None => "".to_string(),
-                }
+                alt.map(|alt| format!(" alt=\"{}\"", alt))
+                    .unwrap_or(String::new())
             )],
         };
-        let description = match description {
-            None => "".to_string(),
-            Some(description) => format!("<p>{}</p>", description),
-        };
-        let description = [description, photos.concat()].concat();
+        let description = description
+            .map(|description| format!("<p>{}</p>{}", description, photos.concat()))
+            .unwrap_or(photos.concat());
         let link = format!(
             "https://www.instagram.com/p/{}/",
             content["shortcode"].as_str().unwrap()
         );
-        let date = content["taken_at_timestamp"].as_i64().unwrap();
+        let date = content["taken_at_timestamp"].as_i64().unwrap_or(0);
         let date = Utc.timestamp(date, 0);
 
         let item = ItemBuilder::default()
@@ -99,9 +86,13 @@ pub fn parser(json: &str) -> String {
         items.push(item);
     }
 
-    let title = format!("{} (@{}) from instagram", fullname, username);
+    let title = match json["full_name"].as_str() {
+        Some(fullname) => format!("{} (@{}) from instagram", fullname, username),
+        None => format!("@{} from instagram", username),
+    };
     let link = format!("https://www.instagram.com/{}", username);
-    let description = json["graphql"]["user"]["biography"].as_str().unwrap();
+    let description = json["biography"].as_str().unwrap_or("");
+    let icon = json["profile_pic_url_hd"].as_str().unwrap_or("");
 
     let image = ImageBuilder::default()
         .title(&title)

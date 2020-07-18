@@ -18,9 +18,10 @@ async function handleRequest(request) {
   const url = new URL(request.url);
   if (url.pathname.slice(-4) != ".xml") { return await create404Responce(); }
   const username = url.pathname.slice(11, -4);
+  const target = `https://www.instagram.com/${username}/?__a=1`;
 
-  const res = await fetch(`https://www.instagram.com/${username}/?__a=1`);
-  if (!res.ok) { return await create404Responce(); }
+  const res = await fetch(target);
+  if (!res.ok || res.url != target) { return await create404Responce(); }
   const json = await res.text();
 
 
