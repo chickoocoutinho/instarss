@@ -30,7 +30,7 @@ pub fn parser(json: &str) -> String {
         .as_array()
         .unwrap();
 
-    let mut items: Vec<rss::Item> = vec![];
+    let mut items = vec![];
     for content in contents {
         let content = &content["node"];
 
@@ -38,15 +38,8 @@ pub fn parser(json: &str) -> String {
         let alt = content["accessibility_caption"].as_str();
         let location = content["location"]["name"].as_str();
 
-        let title = alt.map(|alt| alt.to_string()).unwrap_or(format!(
-            "Photo shared by @{}{}",
-            username,
-            location
-                .map(|location| format!(" at {}", location))
-                .unwrap_or(String::new())
-        ));
-        let photos = match content["edge_sidecar_to_children"]["edges"].as_array() {
-            Some(medias) => medias
+        let photos = if let Some(medias) = content["edge_sidecar_to_children"]["edges"].as_array() {
+            medias
                 .iter()
                 .map(|media| {
                     format!(
@@ -58,38 +51,54 @@ pub fn parser(json: &str) -> String {
                             .unwrap_or(String::new())
                     )
                 })
-                .collect(),
-            None => vec![format!(
+                .collect()
+        } else {
+            vec![format!(
                 "<img src=\"{}\"{}>",
                 content["display_url"].as_str().unwrap(),
                 alt.map(|alt| format!(" alt=\"{}\"", alt))
                     .unwrap_or(String::new())
-            )],
+            )]
         };
+
+        let title = alt.map(|alt| alt.to_string()).unwrap_or(format!(
+            "Photo shared by @{}{}",
+            username,
+            location
+                .map(|location| format!(" at {}", location))
+                .unwrap_or(String::new())
+        ));
+        let link = format!(
+            "https://www.instagram.com/p/{}/",
+            content["shortcode"].as_str().unwrap_or("")
+        );
         let description = description
             .map(|description| format!("<p>{}</p>{}", description, photos.concat()))
             .unwrap_or(photos.concat());
-        let link = format!(
-            "https://www.instagram.com/p/{}/",
-            content["shortcode"].as_str().unwrap()
-        );
+
         let date = content["taken_at_timestamp"].as_i64().unwrap_or(0);
-        let date = Utc.timestamp(date, 0);
+        let date = Utc.timestamp(date, 0).to_rfc2822();
 
         let item = ItemBuilder::default()
             .title(title)
-            .description(description)
             .link(link)
-            .pub_date(date.to_rfc2822())
+            .description(description)
+            .pub_date(date)
             .build()
             .unwrap();
         items.push(item);
     }
 
-    let title = match json["full_name"].as_str() {
-        Some(fullname) => format!("{} (@{}) from instagram", fullname, username),
-        None => format!("@{} from instagram", username),
+    let title = if let Some(fullname) = json["full_name"].as_str() {
+        if fullname.len() != 0 {
+            format!("{} (@{}) from instagram", fullname, username)
+        } else {
+            format!("@{} from instagram", username)
+        }
+    } else {
+        format!("@{} from instagram", username)
     };
+
     let link = format!("https://www.instagram.com/{}", username);
     let description = json["biography"].as_str().unwrap_or("");
     let icon = json["profile_pic_url_hd"].as_str().unwrap_or("");
@@ -103,8 +112,8 @@ pub fn parser(json: &str) -> String {
 
     ChannelBuilder::default()
         .title(&title)
-        .description(description)
         .link(&link)
+        .description(description)
         .image(image)
         .items(items)
         .build()
