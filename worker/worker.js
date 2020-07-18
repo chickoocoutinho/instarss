@@ -2,11 +2,10 @@ addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request))
 })
 
-async function create404Responce() {
+async function createErrResponce(status) {
   const res = await fetch(`https://yuji.ne.jp/404.html`);
   return new Response(await res.text(), {
-    status: 404,
-    headers: { "Content-Type": 'text/html; charset="UTF-8"' }
+    status, headers: { "Content-Type": 'text/html; charset="UTF-8"' }
   });
 }
 
@@ -21,9 +20,9 @@ async function handleRequest(request) {
   const target = `https://www.instagram.com/${username}/?__a=1`;
 
   const res = await fetch(target);
-  if (!res.ok || res.url != target) { return await create404Responce(); }
+  if (!res.ok) { return await createErrResponce(404); }
+  if (res.url != target) { return await createErrResponce(403); }
   const json = await res.text();
-
 
   const { parser } = wasm_bindgen;
   await wasm_bindgen(wasm);
