@@ -2,5 +2,5 @@ name = "instarss"
 type = "rust"
 account_id = "da1b653e9325c3dfa3a192c3742804e6"
 workers_dev = false
-route = "yuji.ne.jp/instagram/*"
+route = "rss.yuji.ne.jp/instagram/*"
 zone_id = "13f3d51a5d48eafd2a120cf385e868f6"
