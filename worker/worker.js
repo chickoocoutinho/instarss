@@ -2,11 +2,8 @@ addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request))
 })
 
-async function createErrResponse(status) {
-  const res = await fetch(`https://yuji.ne.jp/404.html`);
-  return new Response(await res.text(), {
-    status, headers: { "Content-Type": 'text/html; charset="UTF-8"' }
-  });
+function create302Response(status) {
+  return Response.redirect("https://yuji.ne.jp/404.html");
 }
 
 /**
@@ -16,15 +13,15 @@ async function createErrResponse(status) {
 async function handleRequest(request) {
   const url = new URL(request.url);
   if (url.pathname.slice(-4) != ".xml") {
-    return await createErrResponse(404);
+    return create302Response();
   }
 
   const username = url.pathname.slice(11, -4);
   const target = `https://www.instagram.com/${username}/?__a=1`;
 
   const res = await fetch(target);
-  if (!res.ok) { return await createErrResponse(404); }
-  if (res.url != target) { return await createErrResponse(403); }
+  if (!res.ok) { return create302Response(); }
+  if (res.url != target) { return create302Response(); }
   const json = await res.text();
 
   const { parser } = wasm_bindgen;
