@@ -43,7 +43,7 @@ pub fn parser(json: &str) -> String {
                 .iter()
                 .map(|media| {
                     format!(
-                        "<img src=\"{}\"{}>",
+                        "<img style="width:100%" src=\"{}\"{}>",
                         media["node"]["display_url"].as_str().unwrap(),
                         media["node"]["accessibility_caption"]
                             .as_str()
